@@ -1,0 +1,42 @@
+---
+# Solver feedback used by the controller's run(): None (= OpenLoop), Joints,
+# JointsWVelocity, ObservedRobots (= ClosedLoop) or ClosedLoopIntegrateReal.
+# Published to mc_nn contracts as "MCNN::FeedbackType" (SafeCBFTorquePolicyContract expects ClosedLoopIntegrateReal).
+FeedbackType: None
+# If true, the FSM transitions are managed by an external tool
+Managed: false
+# If true and the FSM is self-managed, transitions should be triggered
+StepByStep: true
+# Change idle behaviour, if true the state is kept until transition,
+# otherwise the FSM holds the last state until transition
+IdleKeepState: false
+# Where to look for state libraries
+StatesLibraries:
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@"
+- "@MC_STATES_RUNTIME_INSTALL_PREFIX@"
+# Where to look for state files
+StatesFiles:
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/data"
+- "@MC_STATES_RUNTIME_INSTALL_PREFIX@/data"
+# If true, state factory will be more verbose
+VerboseStateFactory: false
+
+# General constraints, always on
+constraints:
+- type: contact
+- type: dynamics
+  damper: [0.1, 0.01, 0.5]
+- type: compoundJoint
+# Collision constraint
+collisions:
+- type: collision
+  useMinimal: true
+
+# RunNN and RunNNBase (models_dirs = installed policies/) are provided by this
+# package. Robot-specific policy states go in config/controllers/MCNN/<robot>.yaml
+
+# Transitions map
+transitions:
+- [MCNN_Initial, OK, MCNN_Initial, Strict]
+# Initial state
+init: MCNN_Initial

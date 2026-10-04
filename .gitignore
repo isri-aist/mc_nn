@@ -1,0 +1,11 @@
+build/
+devel/
+install/
+log/
+**/.devpod-internal
+.ccache/
+CMakeCache.txt
+CMakeFiles/
+imgui.ini
+**/__tmp__*
+**/__pycache__/

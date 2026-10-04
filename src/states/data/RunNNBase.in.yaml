@@ -1,0 +1,14 @@
+---
+# Base state for running mc_nn policies. Derive from it and set `policies` and
+# `active_policies`. Full schema and behaviour: mc_nn/contracts/README.md
+RunNNBase:
+  base: RunNN
+  # ---------------- Global RunNN configuration
+  models_dirs: ["@POLICIES_DIR@"] # Folders searched recursively for .onnx files (files_backup/ and videos/ skipped); relative entries are relative to mc_nn's installed policies/
+  contracts_dirs: [] # Extra folders of contract libraries (mcnn_contract_*.so); mc_nn's own contracts are always loaded
+  preload: false # true: load every configured model when the state starts; false: load a model when its policy is launched
+  verbose: 1 # 1: warn when a policy cannot keep its rate (mc_rtc time and real time); 0: silent
+  gui: true # false: no RunNN GUI at all (contracts' addGui skipped), saves the GUI computations
+  logs: true # false: no RunNN log entries (common MCNN_<id>_* entries and contracts' addLog skipped)
+  active_policies: [] # Policies running when the state starts: policy ids (prefix + .onnx name) or wildcard patterns
+  policies: [] # Policy configurations: onnx patterns + contract + common and contract-specific settings

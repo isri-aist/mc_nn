@@ -1,0 +1,25 @@
+# mc_nn CMake package, for contracts built outside mc_nn:
+#
+#   find_package(mc_nn REQUIRED)
+#   mc_nn_add_contract(MyPolicy SOURCES MyPolicy.cpp MyPolicy.h)
+#
+# Provides the mc_nn::MCNN target (core library, headers, ONNX Runtime) and the
+# mc_nn_add_contract() function. External contracts are installed in
+# <this project's lib dir>/mc_nn_contracts; list that folder in RunNN's contracts_dirs.
+include(CMakeFindDependencyMacro)
+if(NOT TARGET mc_rtc::mc_control)
+  find_dependency(mc_rtc)
+endif()
+
+get_filename_component(MC_NN_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(MC_NN_LIBDIR "${MC_NN_PREFIX}/lib")
+# Where mc_nn's own contracts are installed (always loaded by RunNN)
+set(MC_NN_INSTALLED_CONTRACTS_DIR "@MC_NN_CONTRACTS_DIR@")
+
+if(NOT TARGET mc_nn::onnxruntime)
+  add_library(mc_nn::onnxruntime SHARED IMPORTED)
+  set_target_properties(mc_nn::onnxruntime PROPERTIES IMPORTED_LOCATION "${MC_NN_LIBDIR}/libonnxruntime.so")
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/mc_nnTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/MCNNContract.cmake")
