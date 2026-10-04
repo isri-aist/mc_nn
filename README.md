@@ -150,7 +150,7 @@ Start the controller with your usual mc_rtc runner. The
 [RandomPolicyContract](contracts/RandomPolicyContract/README.md) sends random
 inputs to the model and prints its outputs: this is an inference smoke test,
 **not a robot-control policy**. For deployment, select a contract implementing
-the model's actual input and output conventions. An example is [SafeCBFTorquePolicyContract](https://github.com/Noceo200/SafeCBFTorquePolicyContract).
+the model's actual input and output conventions. An example is [mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract).
 
 ## Reuse an existing contract
 
@@ -262,7 +262,7 @@ as a separate library with `mc_nn_add_contract()`; no core changes are needed
 for external contracts.
 
 For a torque-control example with safety constraints enforced by a CBF-QP, see
-[SafeCBFTorquePolicyContract](https://github.com/Noceo200/SafeCBFTorquePolicyContract).
+[mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract).
 Those safety mechanisms belong to that contract, not to mc_nn itself.
 
 ## Runtime and performance

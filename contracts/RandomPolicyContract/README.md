@@ -117,7 +117,7 @@ policy paused / removed / state ends
 - **Skip GUI/log-only computations** when RunNN's `gui` / `logs` are false:
   check `guiEnabled()` / `logsEnabled()`.
 
-See [`SafeCBFTorquePolicyContract`](TODO_SAFE_CBF_TORQUE_POLICY_CONTRACT_REPOSITORY_URL) for a contract using `MCNNContract` directly with
+See [mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract) for a contract using `MCNNContract` directly with
 `update`, `afterSolve`, a model created in `load()`, and a larger GUI.
 
 ## Start your own contract from this one

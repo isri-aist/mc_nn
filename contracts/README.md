@@ -56,7 +56,7 @@ Reference contracts:
 - [`RandomPolicyContract`](RandomPolicyContract/README.md): minimal, heavily commented template.
   Sends random inputs and prints outputs; it does not control the robot. Start
   here when writing a single-model interface.
-- [SafeCBFTorquePolicyContract](https://github.com/Noceo200/SafeCBFTorquePolicyContract):
+- [mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract):
   an [external contract](#external-contracts) for torque control through a CBF-QP,
   using the advanced hooks. Its safety mechanisms belong to that contract,
   not to mc_nn itself.
@@ -313,7 +313,7 @@ is not remembered: after an exclusive policy, only the policy you play runs.
 
 A contract sets the default (`defaultExclusive()`); YAML `exclusive` overrides
 it. Use it for contracts that take over the whole robot, like
-`SafeCBFTorquePolicyContract`, which drives every joint in torque.
+`mc_nn_SafeCBFTorquePolicyContract`, which drives every joint in torque.
 
 ## Completion, FSM outputs and transitions
 
