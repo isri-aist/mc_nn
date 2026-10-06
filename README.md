@@ -1,14 +1,19 @@
-# mc_nn - Neural networks as reusable mc_rtc components
+# 🧠 mc_nn — Neural networks as reusable mc_rtc components
 
 **Integrate a policy once. Reuse it across mc_rtc FSM controllers.**
+
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
+[![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-1.25.1-7B61FF.svg)](https://onnxruntime.ai/)
+[![mc_rtc](https://img.shields.io/badge/mc__rtc-FSM%20states-orange.svg)](https://jrl-umi3218.github.io/mc_rtc/)
 
 mc_nn connects ONNX models to [mc_rtc] through small C++ **contracts**: the
 interfaces that build a network's inputs and interpret its outputs. Its
 `RunNN` FSM state handles discovery, scheduling, lifecycle, GUI and logs, so
 you can deploy a different policy without writing another full controller.
 
-See the [contracts guide](contracts/README.md) for what a contract is and how
-to use or write one.
+> **In a hurry?** Follow the [Quick start](#quick-start). Already have a model?
+> See [RunNN configuration](#runnn-configuration). Building a new interface?
+> Start with [Write a contract](#write-a-contract).
 
 Use the supplied **MCNN controller** to get started, or load `RunNN` into an
 existing FSM controller alongside your other states, tasks and observers.
@@ -26,15 +31,16 @@ existing FSM controller alongside your other states, tasks and observers.
 
 ## Contents
 
-- [Why standardize policy interfaces?](#why-standardize-policy-interfaces)
-- [How it works](#how-it-works)
-- [Quick start](#quick-start)
-- [Reuse an existing contract](#reuse-an-existing-contract)
-- [Combine networks](#combine-networks)
-- [Use your own FSM controller](#use-your-own-fsm-controller)
-- [Write a contract](#write-a-contract)
-- [Runtime and performance](#runtime-and-performance)
-- [Package layout and reference](#package-layout-and-reference)
+| Start and configure | Develop and extend |
+| --- | --- |
+| [Why mc_nn?](#why-standardize-policy-interfaces) · [How it works](#how-it-works) · [Quick start](#quick-start) | [Write a contract](#write-a-contract) · [Contract API and examples](contracts/README.md) |
+| [RunNN configuration](#runnn-configuration) · [Use an existing contract](#reuse-an-existing-contract) · [Use another FSM controller](#use-your-own-fsm-controller) | [Combine networks](#combine-networks) · [Runtime and performance](#runtime-and-performance) · [Package reference](#package-layout-and-reference) |
+
+### Quick links
+
+- [RandomPolicyContract](contracts/RandomPolicyContract/README.md) — safely test model loading and inference.
+- [PostureTaskPolicyContract](contracts/PostureTaskPolicyContract/README.md) — tutorial for connecting outputs to an mc_rtc task.
+- [Contracts guide](contracts/README.md) — hooks, lifecycle, and creating internal or external contracts.
 
 ## Why standardize policy interfaces?
 
@@ -194,6 +200,290 @@ init: TryBothPolicies
 See the [PostureTaskPolicyContract tutorial](contracts/PostureTaskPolicyContract/README.md)
 for how to replace random observations with robot, sensor, or object state.
 
+## RunNN configuration
+
+`RunNN` separates **state-wide discovery and UI settings** from **per-policy
+scheduling settings**. Every policy entry also has its own contract-specific
+settings; those are documented by that contract.
+
+### A minimal state
+
+Derive from `RunNNBase` to search mc_nn's installed `policies/` directory by
+default. Use `RunNN` directly when you want to provide every setting yourself.
+
+```yaml
+states:
+  MyPolicies:
+    base: RunNNBase #or RunNN
+    active_policies: [walk_v1]
+    policies:
+      - onnx: ["walk_v1"]
+        contract: MyPolicyContract
+        policy_hz: 50.0
+```
+
+### State-wide settings
+
+| Setting | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `models_dirs` | list of strings | Package policies directory | Folders recursively searched for `.onnx` files. With `RunNNBase`, defaults to mc_nn's installed policies. Relative entries are relative to that directory. See [Model discovery and policy IDs](#model-discovery-and-policy-ids). |
+| `contracts_dirs` | list of strings | `[]` | Additional directories of contract `.so` libraries. mc_nn's own contract directory is searched automatically. See [Reuse an existing contract](#reuse-an-existing-contract). |
+| `preload` | boolean | `false` | Load configured models when the state starts instead of on first launch. See [Runtime and performance](#runtime-and-performance). |
+| `verbose` | integer | `1` | Set to `1` for rate warnings, `0` for silence. See [GUI and runtime controls](#gui-and-runtime-controls). |
+| `gui`, `logs` | boolean | `true` | Enable or disable RunNN's common GUI and logs; contract-specific hooks are also skipped when disabled. See [GUI and runtime controls](#gui-and-runtime-controls). |
+| `active_policies` | list of strings | `[]` | Policy IDs or wildcard patterns to start with the state. See [Model discovery and policy IDs](#model-discovery-and-policy-ids) and [Completion and FSM transitions](#completion-and-fsm-transitions). |
+| `policies` | list of mappings | `[]` | Policy entries specifying model patterns, contract names and per-policy options. See [Model discovery and policy IDs](#model-discovery-and-policy-ids) and [Completion and FSM transitions](#completion-and-fsm-transitions). |
+
+### Common policy settings
+
+These fields apply to each `policies` entry, regardless of the selected
+contract. Add any additional fields required by that contract.
+
+| Setting | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `onnx` | list of strings | Required | Model file names (without `.onnx`) or wildcard patterns. See [Model discovery and policy IDs](#model-discovery-and-policy-ids). |
+| `prefix` | string | `""` | Prepended to each matched model name to create its policy ID. See [Model discovery and policy IDs](#model-discovery-and-policy-ids). |
+| `contract` | string | Required | Registered C++ contract name that defines inputs and outputs. See [Reuse an existing contract](#reuse-an-existing-contract). |
+| `policy_hz` | number | `0.0` | Inference rate in Hz; `0` uses the contract default (30 Hz for the base contract), `-1` runs every controller tick. See [GUI and runtime controls](#gui-and-runtime-controls). |
+| `timeout` | number | `0.0` | Maximum duration in seconds; `0` means no timeout. See [Completion and FSM transitions](#completion-and-fsm-transitions). |
+| `blocking` | boolean | `true` | Whether the policy must finish or time out before the FSM state completes. See [Completion and FSM transitions](#completion-and-fsm-transitions). |
+| `exclusive` | boolean | Contract default (`false` in `MCNNContract`) | Whether launching this policy pauses other running policies. See [Exclusivity and multiple policies](#exclusivity-and-multiple-policies). |
+| `device` | string | `"auto"` | Inference device: `cpu`, `cuda` or `auto` (subject to the installed ONNX Runtime build). See [Runtime and performance](#runtime-and-performance). |
+
+### Full multi-policy template
+
+This template includes all state-wide and common policy options and configures
+the same model with two random-policy configurations and a posture-task
+configuration. `seed`, `input_min`, `input_max`, `print_every`, and
+`finish_after` are specific to `RandomPolicyContract`; the posture contract has
+its own settings. The ONNX selectors use shell-style wildcards (not regular
+expressions): `dummy_*` matches model filenames beginning with `dummy_`.
+
+```yaml
+states:
+  MyPolicies:
+    base: RunNNBase
+    # ---------------- State-wide settings
+    models_dirs: []       # Empty uses the package default; add folders to search elsewhere
+    contracts_dirs: []    # Extra contract-library directories; mc_nn contracts load automatically
+    preload: false        # Load models at state start instead of first launch
+    verbose: 1            # 1 = rate warnings; 0 = silent
+    gui: true             # false also skips contract addGui hooks
+    logs: true             # false also skips contract addLog hooks
+    active_policies:      # IDs (prefix + model name) or wildcard patterns to start
+      - dummy_example
+      - slow_dummy_example
+      - posture_dummy_example
+    policies:             # Each matched model gets its own contract instance
+      # Policy ID: dummy_example
+      - onnx: ["dummy_example"] # Filename without .onnx; wildcards such as "walk_*" also work
+        prefix: ""              # Prefix prepended to each matched model name
+        contract: RandomPolicyContract
+        policy_hz: 10.0          # 0 = contract default; -1 = every controller tick
+        timeout: 0.0             # Seconds; 0 = no timeout
+        blocking: true           # Must finish or time out before RunNN completes
+        exclusive: false         # If true, pauses other running policies
+        device: auto             # cpu, cuda, or auto (depends on ONNX Runtime build)
+        # RandomPolicyContract-specific settings:
+        seed: 0                   # 0 = new random sequence at each launch
+        input_min: -1.0           # Uniform random observation range [input_min, input_max]
+        input_max: 1.0
+        print_every: 10           # Print action summary every N inference steps
+        finish_after: 100         # 0 = never finish; this demo reports completion after 100 steps
+      # Same model, separate instance and ID: slow_dummy_example
+      - onnx: ["dummy_example"]
+        prefix: "slow_"
+        contract: RandomPolicyContract
+        policy_hz: 5.0            # This instance uses a different inference rate
+        timeout: 0.0
+        blocking: true
+        exclusive: false
+        device: auto
+        seed: 42                  # Fixed seed for repeatable random inputs
+        input_min: -1.0
+        input_max: 1.0
+        print_every: 10
+        finish_after: 100
+      # Wildcard selects dummy_example.onnx; prefix gives it a unique policy ID.
+      - onnx: ["dummy_*"]       # Shell-style glob: matches dummy_example, not a regular expression
+        prefix: "posture_"
+        contract: PostureTaskPolicyContract
+        policy_hz: 2.0
+        timeout: 0.0
+        blocking: false           # This tutorial contract does not report finished()
+        exclusive: false
+        device: auto
+        # PostureTaskPolicyContract-specific settings:
+        joints: [right_wrist_roll_joint, right_wrist_pitch_joint]
+        weight: 1.0
+        stiffness: 1.0
+        seed: 0
+        input_min: -1.0
+        input_max: 1.0
+transitions:
+  # Wait for both blocking random policies to report OK. The non-blocking posture demo does not hold completion.
+  - [MyPolicies, "dummy_example(OK), slow_dummy_example(OK)", NextState, Auto]
+  # Alternative: set active_policies: [dummy_example] to run/wait for just that policy.
+  - [MyPolicies, "dummy_example(OK)", SinglePolicyDone, Auto]
+  # Alternative: set a nonzero timeout shorter than completion; if no policy finished, the output is OK.
+  - [MyPolicies, OK, TimedOutOrNoPolicyReportedOK, Auto]
+init: MyPolicies
+```
+
+An empty `models_dirs` uses the package's default policies directory; with
+`RunNNBase`, this is mc_nn's installed bundled policies directory. Every
+`active_policies` entry must match a configured policy ID. Contract-specific
+options vary; consult the selected contract's README for their fields/defaults.
+`RunNN` waits for all active **blocking** policies to finish or time out before
+emitting its FSM output. A non-blocking policy may continue running while it
+waits for the blocking policies. Transition strings are exact: the combined
+output example matches only when both named policies report `OK` in the same
+completion output.
+
+### Model discovery and policy IDs
+
+- Every `models_dirs` entry is searched recursively; models can live anywhere.
+- A pattern without `/` matches the file name (`walk_*`, `*`); a pattern with
+  `/` matches the relative path under its `models_dirs` entry
+  (`2026-*/walk_*`).
+- All models matched by one entry share its contract and configuration, but
+  each receives an independent contract instance.
+- A policy ID is `prefix` + the model file name. Use it in
+  `active_policies`, GUI controls and FSM outputs.
+
+If two entries use the same model, give them different prefixes:
+
+```yaml
+- onnx: ["walk_v1"]
+  contract: MyPolicyContract
+  prefix: ""
+- onnx: ["walk_v1"]
+  contract: MyPolicyContract
+  prefix: "slow_"
+  policy_hz: 25.0
+```
+
+RunNN reports an error if a pattern matches no models, a selected model name is
+ambiguous across directories, or two entries create the same policy ID.
+
+### GUI and runtime controls
+
+The GUI is in a tab called `MCNN`. A configured policy moves through these
+states:
+
+| GUI state | Meaning |
+| --- | --- |
+| **Ready** | Configured and available to launch. Unless `preload: true`, its model and contract are loaded when it is launched. |
+| **Running** | Started and updated by `RunNN` on controller ticks, with inference at its configured rate. |
+| **Paused** | Still in the running list, but torn down and no longer updated. Playing it starts it again from scratch. |
+
+The `Ready policies` dropdown contains policies not currently in the running
+list. Launching one moves it to that list. The running and paused counts, plus
+each policy's completion status, are shown in the `MCNN` tab. `active_policies`
+is separate from these GUI states: it selects which configured policy IDs
+`RunNN` should launch automatically when the state starts.
+
+<!-- Screenshot placeholder for the Full multi-policy template:
+     Save the screenshot as docs/images/run_nn_multi_policy_gui.png, then
+     uncomment the image line below.
+![RunNN GUI with policies from the Full multi-policy template](docs/images/run_nn_multi_policy_gui.png)
+-->
+
+In the [Full multi-policy template](#full-multi-policy-template), the
+`dummy_example`, `slow_dummy_example` and `posture_dummy_example` entries are
+configured policies. The two random-policy entries are blocking; the posture
+example is non-blocking, so it can keep running while `RunNN` waits for the
+blocking policies. Use the ready dropdown to launch policies manually, or
+`active_policies` to start selected IDs automatically.
+
+| Control | Effect |
+| --- | --- |
+| **Launch** | Start a ready policy selected in the dropdown. |
+| **Pause** | Tear down a running policy but keep it in the running list as paused. |
+| **Play** | Start a paused policy again from scratch. |
+| **Remove** | Remove it from the running list and return it to Ready; its loaded model and contract instance are retained. |
+| **Reload** | Recreate the contract instance and reload its model and contract files; restart it if it was running. |
+| **Rate** | Change the inference rate while running. |
+
+With `gui: false`, the GUI is not created and contract `addGui` hooks are not
+called. Policies configured in `active_policies` still run.
+
+### Exclusivity and multiple policies
+
+An exclusive policy pauses all other running policies when launched. Launching
+another policy pauses the exclusive one; previously paused policies do not
+resume automatically. `active_policies` cannot start an exclusive policy
+alongside other policies. YAML `exclusive` overrides the contract's default.
+
+Several policies can run in one `RunNN` state, each with its own model,
+contract, rate, timeout and completion condition. They execute sequentially in
+running-list order, **not as parallel inference workers**. Separate solver
+tasks from different contracts remain in the QP together; use appropriate
+weights, active joints or task dimensions, or make a policy exclusive.
+
+### Completion and FSM transitions
+
+`RunNN` follows the usual mc_rtc FSM state pipeline: its `run()` method returns
+`false` while the state is still running; once complete, it sets the state's
+output and returns `true`. The FSM then uses that output to select a configured
+transition, as described in the
+[mc_rtc FSM facilities tutorial](https://jrl-umi3218.github.io/mc_rtc/tutorials/recipes/fsm.html).
+
+Completion has two separate parts: **the completion gate** determines when the
+FSM state may return, and **the output string** determines which transition
+matches.
+
+1. On each controller tick, `RunNN` updates every running policy, calls its
+   `step()` when its inference schedule is due, then checks `finished()`.
+   Inference therefore runs sequentially, at each policy's configured rate.
+2. `RunNN` returns complete only when at least one policy is in its running
+   list, no blocking policy is paused, and every running blocking policy has
+   either returned `finished() == true` or timed out. Non-blocking policies do
+   not hold this gate. The GUI shows why the state is still waiting.
+3. Once the gate passes, the FSM output is the comma-separated IDs of the
+   running policies whose `finished()` is true on that tick, in running-list
+   order. Timed-out policies are omitted. If no policy reports finished, the
+   output is plain `OK`.
+4. mc_rtc matches transitions by **exact output string**, not by regular
+   expression. A transition is evaluated when `RunNN` returns complete.
+
+So **if all policies return `finished() == true`, the output is not plain
+`OK`**; it contains every finished policy ID, such as
+`policy_a(OK), policy_b(OK)`. Plain `OK` means no running policy reported
+finished (for example, a blocking policy completed only by timing out).
+
+```yaml
+transitions:
+  # Both policies finished by the time the completion gate opens.
+  - [MyPolicies, "policy_a(OK), policy_b(OK)", BothFinished, Auto]
+  # policy_a finished; policy_b timed out before finishing, so only A is in the output.
+  - [MyPolicies, "policy_a(OK)", PolicyADone, Auto]
+  # The completion gate opened (e.g. by timeout), but no policy reported finished.
+  - [MyPolicies, OK, TimedOutWithoutFinishedPolicy, Auto]
+  # Optional catch-all for any exact output string not listed above.
+  - [MyPolicies, DEFAULT, UnexpectedOutput, Auto]
+  # An active policy failed to load.
+  - [MyPolicies, SKIP, RecoveryState, Auto]
+```
+
+For the **single-policy** case, set `active_policies: [policy_a]` and match
+`"policy_a(OK)"`. For **one required policy plus background work**, configure
+`policy_a` as blocking and `policy_b` as non-blocking. If `policy_b` remains
+unfinished, the output is `"policy_a(OK)"`; if it also reports finished before
+the completion gate opens, the output includes both IDs. To wait for **all**
+blocking policies to finish successfully, match the combined output containing
+all their IDs. If a blocking policy times out, it does not produce `id(OK)`;
+the output contains IDs for other policies that finished, or is plain `OK` if
+none did.
+
+Transitions are exact matches. `DEFAULT` can be used as mc_rtc's fallback
+transition for any otherwise-unlisted output. `OK` does **not** mean every
+policy finished successfully: if all running policies report finished, match
+their combined ID string. `RunNN` returns `SKIP` if a model listed in
+`active_policies` fails to load. A contract whose default completion hook
+always returns false needs a non-zero timeout if it should eventually satisfy
+the completion gate.
+
 ## Reuse an existing contract
 
 You do not need to modify mc_nn or create a new controller to use someone
@@ -262,9 +552,8 @@ transitions can sequence networks, and FSM parallel states can combine
 > and task dimensions, or make a policy exclusive. Policies execute sequentially
 > in running-list order, not as parallel inference workers.
 
-See [Multiple policies](contracts/README.md#multiple-policies),
-[Exclusivity](contracts/README.md#exclusive-policies) and
-[Completion and FSM outputs](contracts/README.md#completion-fsm-outputs-and-transitions)
+See [Exclusivity and multiple policies](#exclusivity-and-multiple-policies)
+and [Completion and FSM transitions](#completion-and-fsm-transitions) above
 for the exact behavior.
 
 ## Use your own FSM controller
@@ -338,7 +627,7 @@ its dependencies. `cuda` fails if unavailable; `auto` falls back to CPU.
 
 The wrapper validates model shapes and performs a zero-input inference at
 load time. It currently supports one float input and selects the output named
-`actions`, or the sole output. See [ONNX models](contracts/README.md#onnx-models)
+`actions`, or the sole output. See [ONNX model requirements](contracts/README.md#onnx-model-requirements)
 for supported shapes; input sizes alone cannot validate observation semantics.
 
 ## Package layout and reference
@@ -353,10 +642,9 @@ for supported shapes; input sizes alone cannot validate observation semantics.
 | [cmake/](cmake/) | Exported `mc_nn` CMake package and `mc_nn_add_contract()` |
 | [etc/MCNN.in.yaml](etc/MCNN.in.yaml) | Supplied MCNN controller configuration |
 
-The [contracts guide](contracts/README.md) is the detailed reference for
-[hooks](contracts/README.md#hooks-reference),
-[YAML settings](contracts/README.md#yaml-configuration),
-[GUI controls](contracts/README.md#gui), lifecycle, completion and contract
-development.
+The [contracts guide](contracts/README.md) covers the contract
+[lifecycle](contracts/README.md#lifecycle), [hooks](contracts/README.md#hooks-reference),
+model access and contract development. Common policy YAML, discovery, GUI and
+FSM completion settings are documented in [RunNN configuration](#runnn-configuration).
 
 [mc_rtc]: https://jrl-umi3218.github.io/mc_rtc/

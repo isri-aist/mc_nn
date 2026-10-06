@@ -1,4 +1,4 @@
-# mc_nn contracts
+# 🧩 mc_nn contracts
 
 A **contract** is a reusable C++ interface between a neural network and mc_rtc.
 It builds the inputs, interprets the outputs and manages the resources the
@@ -6,33 +6,20 @@ network needs: tasks, constraints, datastore entries or other controller state.
 A **policy** is a model deployed with a contract and a configuration; the term
 also covers estimation, perception and supervision networks.
 
-This guide covers deployment settings and the contract API. For installation
-and a first inference test, start with the [mc_nn README](../README.md#quick-start).
+This guide is for **using, writing and packaging contracts**. For installation,
+Quick start, and RunNN's common YAML settings, see the
+[mc_nn README](../README.md).
 
 ## Table of contents
 
-- [Responsibilities and examples](#responsibilities-and-examples)
-- [Directory layout](#directory-layout)
-- [Lifecycle](#lifecycle)
-- [Hooks reference](#hooks-reference)
-- [Single-model hooks](#minimal-mcnn-hooks)
-- [Full contract hooks](#full-set-mcnncontract-hooks)
-- [ONNX models](#onnx-models)
-- [YAML configuration](#yaml-configuration)
-- [Model discovery and policy IDs](#finding-models)
-- [GUI](#gui)
-- [Exclusive policies](#exclusive-policies)
-- [Completion, FSM outputs and transitions](#completion-fsm-outputs-and-transitions)
-- [Multiple policies](#multiple-policies)
-- [Host controller requirements](#host-controller-requirements)
-- [Add a contract](#add-a-contract)
-- [External contracts](#external-contracts)
-- [Contract guidelines](#contract-guidelines)
+| Understand the contract API | Build and integrate |
+| --- | --- |
+| [Responsibilities and examples](#responsibilities-and-examples) · [Lifecycle](#lifecycle) · [Hooks reference](#hooks-reference) · [ONNX model requirements](#onnx-model-requirements) | [Host controller requirements](#host-controller-requirements) · [Add a contract](#add-a-contract) · [External contracts](#external-contracts) · [Contract guidelines](#contract-guidelines) |
 
-**Using an existing contract?** Start with [YAML configuration](#yaml-configuration)
-and check its [host requirements](#host-controller-requirements).
-**Writing an interface?** Choose a base in [Hooks reference](#hooks-reference),
-then follow [Add a contract](#add-a-contract) or [External contracts](#external-contracts).
+> **Using a contract?** Configure shared model paths, policy IDs, rates, GUI
+> and transitions in the [RunNN configuration guide](../README.md#runnn-configuration).
+> **Writing one?** Choose a base in [Hooks reference](#hooks-reference), then
+> follow [Add a contract](#add-a-contract).
 
 ## Responsibilities and examples
 
@@ -63,25 +50,6 @@ Reference contracts:
   an [external contract](#external-contracts) for torque control through a CBF-QP,
   using the advanced hooks. Its safety mechanisms belong to that contract,
   not to mc_nn itself.
-
-## Directory layout
-
-```text
-mc_nn/
-  src/mc_nn/          core: MCNNContract, MCNN (single-model helper), MCNNModel, MCNNRegistry, MCNNHost
-  src/states/RunNN.*  the FSM state
-  contracts/<Name>/   one directory per contract, built as libmcnn_contract_<Name>.so
-    RandomPolicyContract/
-    PostureTaskPolicyContract/
-  policies/           bundled models (models can live anywhere, see models_dirs)
-```
-
-Each contract is an optional shared library installed in
-`<install prefix>/lib/mc_nn_contracts/`. `RunNN` loads every library found there
-(plus `contracts_dirs`) and each contract registers itself, so adding a contract
-never changes the core. Contracts can also live in your own project, outside
-mc_nn (see [External contracts](#external-contracts)). A contract whose dependencies are missing is skipped at
-CMake time with a message; `-DMC_NN_CONTRACT_<Name>=OFF` disables one explicitly.
 
 ## Lifecycle
 
@@ -179,7 +147,7 @@ RunNN sets these values before calling the contract's hooks.
 A contract may still add GUI elements or log entries by itself outside
 `addGui`/`addLog`; that always works, but RunNN does not manage or remove them.
 
-#### Direct model access
+#### ONNX model access
 
 When deriving from `MCNNContract`, keep an
 [MCNNModel](../src/mc_nn/MCNNModel.h) and create it in `load()`. For example:
@@ -189,7 +157,7 @@ model_ = std::make_shared<MCNNModel>(info().modelPath, info().device, info().id)
 Eigen::VectorXd action = model_->predict(observation); // or model_->run(std::vector<float>, std::vector<float>&)
 ```
 
-## ONNX models
+## ONNX model requirements
 
 The `MCNNModel` wrapper supports:
 
@@ -200,167 +168,22 @@ The `MCNNModel` wrapper supports:
 | Selected output | The output named `actions`, or the only output if none has that name. |
 | Load-time check | A zero-input inference validates the declared shapes. |
 
-`device` selects `cpu`, `cuda` or `auto`. The vendored ONNX Runtime 1.25.1 is a
-**CPU build**: CUDA needs a runtime build with the CUDA provider and its
-dependencies. `cuda` fails when unavailable; `auto` attempts CUDA when supported
-and otherwise falls back to CPU.
+Shape checks do not validate observation ordering, normalization or action
+semantics; validate those in your contract. For runtime and device details, see
+[Runtime and performance](../README.md#runtime-and-performance).
 
-Each `MCNNModel` owns its own environment and session. Sharing the runtime
-library does not share model instances. Shape checks also do not validate
-observation ordering, normalization or action semantics; validate those in
-your contract.
+## Contract library layout
 
-## YAML configuration
+An internal contract lives in `contracts/<Name>/` and is built as its own
+optional shared library, `libmcnn_contract_<Name>.so`. `RunNN` loads libraries
+from mc_nn's contract directory and any additional `contracts_dirs`.
+Each library registers its contract name, so adding one does not require
+changes to the core or host controller.
 
-Derive from `RunNNBase` to use mc_nn's installed `policies/` as the default
-model directory, or override `models_dirs` with your own paths.
-
-Configuration has three layers: **state settings** for discovery and operator
-tools, **common policy settings** for scheduling and completion, and
-**contract-specific settings** for the interface itself. The example below
-shows all three; model names, paths and the 50 Hz rate are illustrative, not
-defaults. `exclusive` defaults to the contract's `defaultExclusive()` unless
-explicitly set.
-
-```yaml
-states:
-  MyPolicies:
-    base: RunNNBase
-    # ---------------- Global RunNN configuration
-    models_dirs: [/home/me/my_models] # searched recursively; relative = inside mc_nn's installed policies/
-    contracts_dirs: []   # extra folders of contract libraries (external contracts)
-    preload: false       # true: load every model when the state starts; false: when launched
-    verbose: 1           # 1: rate warnings; 0: silent
-    gui: true            # false: no RunNN GUI at all (contracts' addGui skipped)
-    logs: true           # false: no RunNN log entries (contracts' addLog skipped)
-    active_policies: [walk_v1] # ids or wildcard patterns running at state start
-    # ---------------- Policy configurations
-    policies:
-      - onnx: ["walk_*"]   # .onnx names without extension, or wildcard patterns
-        prefix: ""         # policy id = prefix + .onnx name
-        contract: RandomPolicyContract
-        # -- Common contract configuration (read by RunNN)
-        policy_hz: 50.0   # 0 = contract default, -1 = every controller tick
-        timeout: 0.0      # [s], 0 = never
-        blocking: true    # must finish or time out before RunNN completes
-        exclusive: false  # default comes from the contract
-        device: auto      # cpu | cuda | auto
-        # -- Contract-specific configuration (here: RandomPolicyContract)
-        seed: 0
-        print_every: 10
-```
-
-### Finding models
-
-- Every `models_dirs` entry is searched recursively for `.onnx` files;
-  `files_backup/` and `videos/` directories are skipped. Models can live anywhere
-  on the computer.
-- A pattern without `/` matches the file name (`walk_*`, `*`); a pattern with `/`
-  matches the path relative to its `models_dirs` entry, one level per `/`
-  (`2026-*/walk_*`).
-- All models matched by one entry share its contract and configuration, but
-  each one gets its own independent contract instance.
-- The policy id is `prefix` + file name. It identifies the policy in
-  `active_policies`, the GUI, the logs (`MCNN_<id>_...`) and FSM outputs.
-
-Errors at state start: a pattern matching nothing; a selected file name found in
-two places (ambiguous); the same id selected by two entries. To run one model
-with two configurations, give the entries different prefixes:
-
-```yaml
-- onnx: ["walk_v1"]
-  prefix: ""           # id: walk_v1
-  ...
-- onnx: ["walk_v1"]
-  prefix: "slow_"      # id: slow_walk_v1
-  policy_hz: 25.0
-  ...
-```
-
-## GUI
-
-Everything is under `MCNN / <state name>`:
-
-```text
-MCNN / MyPolicies
-  Configured policies, Loaded models, Running policies, Paused policies
-  Completion: "Not complete: 1 paused blocking policy; waiting for '...'"
-  Ready policies [dropdown]
-  Exclusive: "This policy is set as exclusive and will pause all others if launched"
-  [Launch]
-  - <id>: Running | 49.9/50.0 Hz | running, not finished      (one line per running/paused policy)
-MCNN / MyPolicies / <id>
-  Policy, Status, Run speed [Hz] (desired), Completion, Elapsed, Timeout, Blocking,
-  Exclusive, Inference updates, Observation / action size, Model
-  [Pause|Play] [Remove] [Reload]
-  Rate [Hz] [field][button]    Rate values: 0 = contract default, -1 = every tick
-  Contract
-MCNN / MyPolicies / <id> / <contract>       contract-specific GUI (while running)
-```
-
-- **Launch** adds a ready policy to the running list and starts it.
-- **Pause** tears the contract down (its tasks leave the QP); **Play** starts it
-  again from scratch.
-- **Remove** tears it down and returns it to the ready list; the model stays loaded.
-- **Reload** creates a new instance, re-reads the model and the contract's files,
-  and restarts it if it was running.
-- **Rate** changes the inference rate at runtime.
-
-With `gui: false`, none of this is created (and contracts' `addGui` is not
-called); policies still run from `active_policies`.
-
-## Exclusive policies
-
-An exclusive policy pauses every other running policy when it starts. Starting
-any policy while an exclusive one runs pauses the exclusive one. What ran before
-is not remembered: after an exclusive policy, only the policy you play runs.
-`active_policies` may not list an exclusive policy together with other ones.
-
-A contract sets the default (`defaultExclusive()`); YAML `exclusive` overrides
-it. Use it for contracts that take over the whole robot, like
-`mc_nn_SafeCBFTorquePolicyContract`, which drives every joint in torque.
-
-## Completion, FSM outputs and transitions
-
-Each policy has an independent scheduler, completion condition and timeout. On
-every controller cycle, `RunNN` completes when:
-
-- at least one policy is in the running list, and
-- no **paused blocking** policy is in the running list, and
-- every running **blocking** policy satisfies `finished() || timedOut`.
-
-Non-blocking policies are evaluated but ignored by this condition. The current
-reason ("no policy running", "N paused blocking policies", "waiting for ...") is
-shown in the GUI. Completion is not latched and has no side effect on inference.
-`RunNN` returns `SKIP` if an `active_policies` model failed to load.
-
-mc_rtc states expose one output string. `RunNN` joins the ids of running
-policies whose `finished()` returns true, in running-list order:
-
-```text
-policy_a(OK), policy_b(OK)
-```
-
-Use that exact string in a transition (`OK` when none reported completion):
-
-```yaml
-transitions:
-  - [MyPolicies, "policy_a(OK), policy_b(OK)", NextState, Auto]
-  - [MyPolicies, "policy_a(OK)", PolicyBNotReadyState, Auto]
-  - [MyPolicies, SKIP, RecoveryState, Auto]
-```
-
-A timeout satisfies a blocking policy's condition but does not produce
-`id(OK)`. The FSM consults the output only after `RunNN::run()` returns `true`,
-so these are final combined results. A policy with `timeout: 0.0` and the
-default completion hook keeps the state running indefinitely.
-
-## Multiple policies
-
-Running policies are stepped in running-list order, but solver tasks are not
-"last writer wins". If two policies add separate tasks, both remain in the QP;
-use task weights, stiffness, active joints or task dimensions to manage their
-interaction, or make one of them exclusive.
+Contracts can also live in an independent project; see
+[External contracts](#external-contracts). If a declared dependency is missing,
+CMake skips that contract with a message. Disable an optional bundled contract
+with `-DMC_NN_CONTRACT_<Name>=OFF`.
 
 ## Host controller requirements
 
