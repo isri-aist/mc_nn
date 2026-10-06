@@ -56,6 +56,9 @@ Reference contracts:
 - [`RandomPolicyContract`](RandomPolicyContract/README.md): minimal, heavily commented template.
   Sends random inputs and prints outputs; it does not control the robot. Start
   here when writing a single-model interface.
+- [`PostureTaskPolicyContract`](PostureTaskPolicyContract/README.md): tutorial
+  contract that maps model outputs to selected joint posture targets. Its
+  observations are random; use it to learn task integration, not as a trained policy.
 - [mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract):
   an [external contract](#external-contracts) for torque control through a CBF-QP,
   using the advanced hooks. Its safety mechanisms belong to that contract,
@@ -68,6 +71,8 @@ mc_nn/
   src/mc_nn/          core: MCNNContract, MCNN (single-model helper), MCNNModel, MCNNRegistry, MCNNHost
   src/states/RunNN.*  the FSM state
   contracts/<Name>/   one directory per contract, built as libmcnn_contract_<Name>.so
+    RandomPolicyContract/
+    PostureTaskPolicyContract/
   policies/           bundled models (models can live anywhere, see models_dirs)
 ```
 

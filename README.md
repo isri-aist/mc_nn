@@ -140,7 +140,7 @@ states:
     # models_dirs: [/path/to/my_models]
     # active_policies: [my_model]
     policies:
-      - onnx: ["dummy_example"]
+      - onnx: ["dummy_example"] # wildcard patterns are supported if you want several policies to share the same configurations
         # For another model, replace "dummy_example" above with "my_model".
         contract: RandomPolicyContract
         policy_hz: 10.0
@@ -156,6 +156,43 @@ inputs to the model and prints its outputs; it does not control the robot.
 This is an inference smoke test, not a deployable policy. To run a custom policy
 for robot control, use a contract that implements that model's input and output
 conventions; see [Reuse an existing contract](#reuse-an-existing-contract).
+
+### 4. Try a posture-task example
+
+This uses the same bundled model but sends its actions to an mc_rtc posture
+task. **The observations are random, so this is only a control-pipeline demo,
+not a meaningful or safe-to-deploy policy. Try it in simulation first.**
+This example keeps the Step 3 random-policy instance active and adds the
+posture-task instance. Both use the same model; `prefix` gives the second
+instance a distinct policy ID. The bundled ONNX model has 9 actions, so the
+contract can control up to 9 one-DoF joints. Replace the example G1 joints with
+joints from your robot; fewer joints are allowed, and the contract uses the
+first action slots in list order.
+
+```yaml
+states:
+  TryBothPolicies:
+    base: RunNNBase
+    active_policies: [dummy_example, posture_dummy_example]
+    policies:
+      - onnx: ["dummy_example"]
+        contract: RandomPolicyContract
+        policy_hz: 10.0
+        print_every: 10
+      - onnx: ["dummy_example"]
+        prefix: "posture_" #We need to add a prefix to avoid naming conflict with already configured policy named "dummy_example" fro RandomPolicyContract
+        contract: PostureTaskPolicyContract
+        policy_hz: 2.0
+        joints: [right_wrist_roll_joint, right_wrist_pitch_joint]
+        weight: 1.0
+        stiffness: 1.0
+transitions:
+  - [TryBothPolicies, OK, TryBothPolicies, Strict]
+init: TryBothPolicies
+```
+
+See the [PostureTaskPolicyContract tutorial](contracts/PostureTaskPolicyContract/README.md)
+for how to replace random observations with robot, sensor, or object state.
 
 ## Reuse an existing contract
 

@@ -3,3 +3,4 @@
 # another one must be listed after it. Contracts can also live in their own
 # project (see README.md, "External contracts").
 add_subdirectory(RandomPolicyContract)
+add_subdirectory(PostureTaskPolicyContract)
