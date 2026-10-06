@@ -126,31 +126,36 @@ Set `Enabled: [MCNN]` in your mc_rtc configuration, keeping your existing robot
 and simulator settings. The supplied controller's FSM defaults and solver
 `FeedbackType` are defined in [etc/MCNN.in.yaml](etc/MCNN.in.yaml).
 
-### 3. Try a model
+### 3. Try the bundled smoke-test model
 
-Place `my_model.onnx` in `/home/me/my_models`, then add this state to
-`~/.config/mc_rtc/controllers/MCNN/<robot>.yaml`:
+mc_nn installs a sample model as `dummy_example.onnx` in its default policies
+directory. Add this state to `~/.config/mc_rtc/controllers/MCNN/<robot>.yaml`:
 
 ```yaml
 states:
-  TryMyModel:
+  TryDummyExample:
     base: RunNNBase
-    models_dirs: [/home/me/my_models]
-    active_policies: [my_model]
+    active_policies: [dummy_example]
+    # To smoke-test a different ONNX model, uncomment and set its folder and file name:
+    # models_dirs: [/path/to/my_models]
+    # active_policies: [my_model]
     policies:
-      - onnx: ["my_model"]
+      - onnx: ["dummy_example"]
+        # For another model, replace "dummy_example" above with "my_model".
         contract: RandomPolicyContract
         policy_hz: 10.0
+        print_every: 10
 transitions:
-  - [TryMyModel, OK, TryMyModel, Strict]
-init: TryMyModel
+  - [TryDummyExample, OK, TryDummyExample, Strict]
+init: TryDummyExample
 ```
 
 Start the controller with your usual mc_rtc runner. The
 [RandomPolicyContract](contracts/RandomPolicyContract/README.md) sends random
-inputs to the model and prints its outputs: this is an inference smoke test,
-**not a robot-control policy**. For deployment, select a contract implementing
-the model's actual input and output conventions. An example is [mc_nn_SafeCBFTorquePolicyContract](https://github.com/isri-aist/mc_nn_SafeCBFTorquePolicyContract).
+inputs to the model and prints its outputs; it does not control the robot.
+This is an inference smoke test, not a deployable policy. To run a custom policy
+for robot control, use a contract that implements that model's input and output
+conventions; see [Reuse an existing contract](#reuse-an-existing-contract).
 
 ## Reuse an existing contract
 
