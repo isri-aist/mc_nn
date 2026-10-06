@@ -360,15 +360,22 @@ interaction, or make one of them exclusive.
 ## Host controller requirements
 
 `RunNN` works in any mc_rtc FSM controller. The `MCNN` controller shipped with
-mc_nn is a minimal one. To use `RunNN` from your own FSM controller, add mc_nn's
-states to its FSM configuration:
+mc_nn is a minimal one. When mc_nn is installed alongside mc_rtc, use these
+paths in your controller's CMake-configured FSM YAML template:
 
 ```yaml
 StatesLibraries:
-- "<mc_nn install prefix>/lib/mc_controller/MCNN/states"
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@"
+- "@MC_STATES_RUNTIME_INSTALL_PREFIX@"
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/../../MCNN/states"
 StatesFiles:
-- "<mc_nn install prefix>/lib/mc_controller/MCNN/states/data"
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/data"
+- "@MC_STATES_RUNTIME_INSTALL_PREFIX@/data"
+- "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/../../MCNN/states/data"
 ```
+
+For a custom mc_nn installation, replace the two MCNN entries with
+`<mc_nn install prefix>/lib/mc_controller/MCNN/states` and its `/data` directory.
 
 Contracts that need the controller's cooperation go through the datastore, so
 the host does not need to link against mc_nn (see

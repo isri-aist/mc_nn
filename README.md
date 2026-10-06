@@ -227,14 +227,22 @@ for the exact behavior.
 
 ## Use your own FSM controller
 
-Add mc_nn's installed states to your controller's FSM configuration:
+When mc_nn is installed alongside mc_rtc, use these paths in your controller's
+CMake-configured FSM YAML template:
 
 ```yaml
 StatesLibraries:
-  - "<mc_nn install prefix>/lib/mc_controller/MCNN/states"
+  - "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@"
+  - "@MC_STATES_RUNTIME_INSTALL_PREFIX@"
+  - "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/../../MCNN/states"
 StatesFiles:
-  - "<mc_nn install prefix>/lib/mc_controller/MCNN/states/data"
+  - "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/data"
+  - "@MC_STATES_RUNTIME_INSTALL_PREFIX@/data"
+  - "@MC_STATES_DEFAULT_RUNTIME_INSTALL_PREFIX@/../../MCNN/states/data"
 ```
+
+For a custom mc_nn installation, replace the two MCNN entries with
+`<mc_nn install prefix>/lib/mc_controller/MCNN/states` and its `/data` directory.
 
 Then define states with `base: RunNN` or `base: RunNNBase`. `RunNNBase` sets
 `models_dirs` to the installed bundled policies by default.
