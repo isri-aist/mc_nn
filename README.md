@@ -128,16 +128,37 @@ configuration. Installed libraries use RPATH to find mc_nn's dependencies;
 
 ### 2. Enable the host controller
 
-Set `Enabled: [MCNN]` in your mc_rtc configuration, keeping your existing robot
-and simulator settings. The supplied controller's FSM defaults and solver
+Set `Enabled: [MCNN]` in your mc_rtc configuration (~/.config/mc_rtc/mc_rtc.yaml), keeping your existing robot
+and simulator settings or using JVRC1 pre-installed Robot: 
+```yaml
+MainRobot: JVRC1 #Or yours
+Enabled: [MCNN]
+```
+
+The supplied controller's FSM defaults and solver
 `FeedbackType` are defined in [etc/MCNN.in.yaml](etc/MCNN.in.yaml).
 
 ### 3. Try the bundled smoke-test model
 
 mc_nn installs a sample model as `dummy_example.onnx` in its default policies
-directory. Add this state to `~/.config/mc_rtc/controllers/MCNN/<robot>.yaml`:
+directory. Add this state to `~/.config/mc_rtc/controllers/MCNN/<robot>.yaml` (or jvrc1.yaml if you use JVRC1):
 
 ```yaml
+robots:
+  ground:
+    module: env/ground
+constraints: 
+  - type: contact
+  - type: dynamics
+    damper: [0.1, 0.01, 0.5]
+  - type: compoundJoint
+contacts:
+  - r2: ground
+    r1Surface: LeftFootCenter
+    r2Surface: AllGround
+  - r2: ground
+    r1Surface: RightFootCenter
+    r2Surface: AllGround
 states:
   TryDummyExample:
     base: RunNNBase
@@ -171,11 +192,26 @@ not a meaningful or safe-to-deploy policy. Try it in simulation first.**
 This example keeps the Step 3 random-policy instance active and adds the
 posture-task instance. Both use the same model; `prefix` gives the second
 instance a distinct policy ID. The bundled ONNX model has 9 actions, so the
-contract can control up to 9 one-DoF joints. Replace the example G1 joints with
-joints from your robot; fewer joints are allowed, and the contract uses the
+contract can control up to 9 one-DoF joints. Replace the example JVRC1 joints with
+joints from your robot if needed; fewer joints are allowed, and the contract uses the
 first action slots in list order.
 
 ```yaml
+robots:
+  ground:
+    module: env/ground
+constraints: 
+  - type: contact
+  - type: dynamics
+    damper: [0.1, 0.01, 0.5]
+  - type: compoundJoint
+contacts:
+  - r2: ground
+    r1Surface: LeftFootCenter
+    r2Surface: AllGround
+  - r2: ground
+    r1Surface: RightFootCenter
+    r2Surface: AllGround
 states:
   TryBothPolicies:
     base: RunNNBase
@@ -189,9 +225,9 @@ states:
         prefix: "posture_" #We need to add a prefix to avoid naming conflict with already configured policy named "dummy_example" fro RandomPolicyContract
         contract: PostureTaskPolicyContract
         policy_hz: 2.0
-        joints: [right_wrist_roll_joint, right_wrist_pitch_joint]
+        joints: [L_WRIST_R, R_WRIST_R, NECK_Y]
         weight: 1.0
-        stiffness: 1.0
+        stiffness: 10.0
 transitions:
   - [TryBothPolicies, OK, TryBothPolicies, Strict]
 init: TryBothPolicies
@@ -314,9 +350,9 @@ states:
         exclusive: false
         device: auto
         # PostureTaskPolicyContract-specific settings:
-        joints: [right_wrist_roll_joint, right_wrist_pitch_joint]
+        joints: [L_WRIST_R, R_WRIST_R, NECK_Y]
         weight: 1.0
-        stiffness: 1.0
+        stiffness: 10.0
         seed: 0
         input_min: -1.0
         input_max: 1.0
@@ -383,11 +419,9 @@ each policy's completion status, are shown in the `MCNN` tab. `active_policies`
 is separate from these GUI states: it selects which configured policy IDs
 `RunNN` should launch automatically when the state starts.
 
-<!-- Screenshot placeholder for the Full multi-policy template:
-     Save the screenshot as docs/images/run_nn_multi_policy_gui.png, then
-     uncomment the image line below.
-![RunNN GUI with policies from the Full multi-policy template](docs/images/run_nn_multi_policy_gui.png)
--->
+<p align="center">
+  <img src="docs/images/run_nn_multi_policy_gui.png" width="800">
+</p>
 
 In the [Full multi-policy template](#full-multi-policy-template), the
 `dummy_example`, `slow_dummy_example` and `posture_dummy_example` entries are
