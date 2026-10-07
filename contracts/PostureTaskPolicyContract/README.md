@@ -24,7 +24,7 @@ states:
         policy_hz: 2.0
         joints: [right_wrist_roll_joint, right_wrist_pitch_joint]
         weight: 1.0      # posture-task weight
-        stiffness: 1.0   # posture-task stiffness
+        stiffness: 10.0   # posture-task stiffness
         seed: 0           # 0 = random input sequence each launch
         input_min: -1.0   # random observation range
         input_max: 1.0
