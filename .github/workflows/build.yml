@@ -1,0 +1,66 @@
+name: Build mc_nn
+
+on:
+  repository_dispatch:
+    types:
+    - run-ci
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
+        compiler: [gcc, clang]
+        build-type: [RelWithDebInfo]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Install dependencies
+      uses: jrl-umi3218/github-actions/install-dependencies@master
+      with:
+        compiler: ${{ matrix.compiler }}
+        build-type: ${{ matrix.build-type }}
+        ubuntu: |
+          apt: libmc-rtc-dev
+          apt-mirrors:
+            mc-rtc:
+              cloudsmith: mc-rtc/head
+    - name: Build and test
+      uses: jrl-umi3218/github-actions/build-cmake-project@master
+      with:
+        compiler: ${{ matrix.compiler }}
+        build-type: ${{ matrix.build-type }}
+    - name: "[test-standalone] Check consumer usage"
+      shell: bash
+      run: |
+        set -x
+        cd .github/workflows/test-standalone
+        mkdir build && cd build
+        cmake ../ -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
+        cmake --build . --config ${{ matrix.build-type }}
+        ldd_output="$(ldd -r ./mcnn-consumer)"
+        printf '%s\n' "$ldd_output"
+        if grep -Eq 'not found|undefined symbol' <<< "$ldd_output"; then
+          exit 1
+        fi
+        ctest -V -C ${{ matrix.build-type }}
+  check:
+    if: always()
+    name: check-build
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - uses: re-actors/alls-green@release/v1
+        with:
+          allowed-skips: fallback
+          jobs: ${{ toJSON(needs) }}

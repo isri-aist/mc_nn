@@ -10,5 +10,11 @@ target_compile_definitions(RunNN PRIVATE MC_NN_POLICIES_DIR="${POLICIES_DIR}")
 set_property(TARGET RunNN APPEND PROPERTY INSTALL_RPATH "${MC_RTC_LIBDIR}")
 
 # RunNNBase needs the installed policies path, so it is configured, not copied.
-configure_file(data/RunNNBase.in.yaml "${CMAKE_CURRENT_BINARY_DIR}/data/RunNNBase.yaml")
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/data/RunNNBase.yaml" DESTINATION "${MC_STATES_RUNTIME_INSTALL_PREFIX}/data")
+configure_file(
+    data/RunNNBase.in.yaml
+    "${CMAKE_CURRENT_BINARY_DIR}/data/RunNNBase.yaml"
+)
+install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/data/RunNNBase.yaml"
+    DESTINATION "${MC_STATES_RUNTIME_INSTALL_PREFIX}/data"
+)

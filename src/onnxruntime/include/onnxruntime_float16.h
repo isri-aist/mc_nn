@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -88,25 +89,19 @@ struct Float16Impl {
   /// Checks if the value is negative
   /// </summary>
   /// <returns>true if negative</returns>
-  bool IsNegative() const noexcept {
-    return static_cast<int16_t>(val) < 0;
-  }
+  bool IsNegative() const noexcept { return static_cast<int16_t>(val) < 0; }
 
   /// <summary>
   /// Tests if the value is NaN
   /// </summary>
   /// <returns>true if NaN</returns>
-  bool IsNaN() const noexcept {
-    return AbsImpl() > kPositiveInfinityBits;
-  }
+  bool IsNaN() const noexcept { return AbsImpl() > kPositiveInfinityBits; }
 
   /// <summary>
   /// Tests if the value is finite
   /// </summary>
   /// <returns>true if finite</returns>
-  bool IsFinite() const noexcept {
-    return AbsImpl() < kPositiveInfinityBits;
-  }
+  bool IsFinite() const noexcept { return AbsImpl() < kPositiveInfinityBits; }
 
   /// <summary>
   /// Tests if the value represents positive infinity.
@@ -147,9 +142,10 @@ struct Float16Impl {
   /// <returns>True if so</returns>
   bool IsNormal() const noexcept {
     auto abs = AbsImpl();
-    return (abs < kPositiveInfinityBits)           // is finite
-           && (abs != 0)                           // is not zero
-           && ((abs & kBiasedExponentMask) != 0);  // is not subnormal (has a non-zero exponent)
+    return (abs < kPositiveInfinityBits)  // is finite
+           && (abs != 0)                  // is not zero
+           && ((abs & kBiasedExponentMask) !=
+               0);  // is not subnormal (has a non-zero exponent)
   }
 
   /// <summary>
@@ -158,9 +154,10 @@ struct Float16Impl {
   /// <returns>True if so</returns>
   bool IsSubnormal() const noexcept {
     auto abs = AbsImpl();
-    return (abs < kPositiveInfinityBits)           // is finite
-           && (abs != 0)                           // is not zero
-           && ((abs & kBiasedExponentMask) == 0);  // is subnormal (has a zero exponent)
+    return (abs < kPositiveInfinityBits)  // is finite
+           && (abs != 0)                  // is not zero
+           && ((abs & kBiasedExponentMask) ==
+               0);  // is subnormal (has a zero exponent)
   }
 
   /// <summary>
@@ -176,9 +173,10 @@ struct Float16Impl {
   Derived Negate() const noexcept { return Derived::FromBits(NegateImpl()); }
 
   /// <summary>
-  /// IEEE defines that positive and negative zero are equal, this gives us a quick equality check
-  /// for two values by or'ing the private bits together and stripping the sign. They are both zero,
-  /// and therefore equivalent, if the resulting value is still zero.
+  /// IEEE defines that positive and negative zero are equal, this gives us a
+  /// quick equality check for two values by or'ing the private bits together
+  /// and stripping the sign. They are both zero, and therefore equivalent, if
+  /// the resulting value is still zero.
   /// </summary>
   /// <param name="lhs">first value</param>
   /// <param name="rhs">second value</param>
@@ -195,19 +193,23 @@ struct Float16Impl {
     return val == rhs.val;
   }
 
-  bool operator!=(const Float16Impl& rhs) const noexcept { return !(*this == rhs); }
+  bool operator!=(const Float16Impl& rhs) const noexcept {
+    return !(*this == rhs);
+  }
 
   bool operator<(const Float16Impl& rhs) const noexcept {
     if (IsNaN() || rhs.IsNaN()) {
-      // IEEE defines that NaN is unordered with respect to everything, including itself.
+      // IEEE defines that NaN is unordered with respect to everything,
+      // including itself.
       return false;
     }
 
     const bool left_is_negative = IsNegative();
     if (left_is_negative != rhs.IsNegative()) {
-      // When the signs of left and right differ, we know that left is less than right if it is
-      // the negative value. The exception to this is if both values are zero, in which case IEEE
-      // says they should be equal, even if the signs differ.
+      // When the signs of left and right differ, we know that left is less than
+      // right if it is the negative value. The exception to this is if both
+      // values are zero, in which case IEEE says they should be equal, even if
+      // the signs differ.
       return left_is_negative && !AreZero(*this, rhs);
     }
     return (val != rhs.val) && ((val < rhs.val) ^ left_is_negative);
@@ -250,7 +252,8 @@ inline constexpr uint16_t Float16Impl<Derived>::ToUint16Impl(float v) noexcept {
 
   constexpr detail::float32_bits f32infty = {255 << 23};
   constexpr detail::float32_bits f16max = {(127 + 16) << 23};
-  constexpr detail::float32_bits denorm_magic = {((127 - 15) + (23 - 10) + 1) << 23};
+  constexpr detail::float32_bits denorm_magic = {((127 - 15) + (23 - 10) + 1)
+                                                 << 23};
   constexpr unsigned int sign_mask = 0x80000000u;
   uint16_t val = static_cast<uint16_t>(0x0u);
 
@@ -262,10 +265,10 @@ inline constexpr uint16_t Float16Impl<Derived>::ToUint16Impl(float v) noexcept {
   // 0x80000000. Important if you want fast straight SSE2 code
   // (since there's no unsigned PCMPGTD).
 
-  if (f.u >= f16max.u) {                         // result is Inf or NaN (all exponent bits set)
+  if (f.u >= f16max.u) {  // result is Inf or NaN (all exponent bits set)
     val = (f.u > f32infty.u) ? 0x7e00 : 0x7c00;  // NaN->qNaN and Inf->Inf
-  } else {                                       // (De)normalized number or zero
-    if (f.u < (113 << 23)) {                     // resulting FP16 is subnormal or zero
+  } else {                    // (De)normalized number or zero
+    if (f.u < (113 << 23)) {  // resulting FP16 is subnormal or zero
       // use a magic value to align our 10 mantissa bits at the bottom of
       // the float. as long as FP addition is round-to-nearest-even this
       // just works.
@@ -294,7 +297,8 @@ inline constexpr uint16_t Float16Impl<Derived>::ToUint16Impl(float v) noexcept {
 template <class Derived>
 inline float Float16Impl<Derived>::ToFloatImpl() const noexcept {
   constexpr detail::float32_bits magic = {113 << 23};
-  constexpr unsigned int shifted_exp = 0x7c00 << 13;  // exponent mask after shift
+  constexpr unsigned int shifted_exp = 0x7c00
+                                       << 13;  // exponent mask after shift
   detail::float32_bits o{};
 
   o.u = (val & 0x7fff) << 13;            // exponent/mantissa bits
@@ -311,7 +315,8 @@ inline float Float16Impl<Derived>::ToFloatImpl() const noexcept {
 
   // Attempt to workaround the Internal Compiler Error on ARM64
   // for bitwise | operator, including std::bitset
-#if (defined _MSC_VER) && (defined _M_ARM || defined _M_ARM64 || defined _M_ARM64EC)
+#if (defined _MSC_VER) && \
+    (defined _M_ARM || defined _M_ARM64 || defined _M_ARM64EC)
   if (IsNegative()) {
     return -o.f;
   }
@@ -377,25 +382,19 @@ struct BFloat16Impl {
   /// Checks if the value is negative
   /// </summary>
   /// <returns>true if negative</returns>
-  bool IsNegative() const noexcept {
-    return static_cast<int16_t>(val) < 0;
-  }
+  bool IsNegative() const noexcept { return static_cast<int16_t>(val) < 0; }
 
   /// <summary>
   /// Tests if the value is NaN
   /// </summary>
   /// <returns>true if NaN</returns>
-  bool IsNaN() const noexcept {
-    return AbsImpl() > kPositiveInfinityBits;
-  }
+  bool IsNaN() const noexcept { return AbsImpl() > kPositiveInfinityBits; }
 
   /// <summary>
   /// Tests if the value is finite
   /// </summary>
   /// <returns>true if finite</returns>
-  bool IsFinite() const noexcept {
-    return AbsImpl() < kPositiveInfinityBits;
-  }
+  bool IsFinite() const noexcept { return AbsImpl() < kPositiveInfinityBits; }
 
   /// <summary>
   /// Tests if the value represents positive infinity.
@@ -436,9 +435,10 @@ struct BFloat16Impl {
   /// <returns>True if so</returns>
   bool IsNormal() const noexcept {
     auto abs = AbsImpl();
-    return (abs < kPositiveInfinityBits)           // is finite
-           && (abs != 0)                           // is not zero
-           && ((abs & kBiasedExponentMask) != 0);  // is not subnormal (has a non-zero exponent)
+    return (abs < kPositiveInfinityBits)  // is finite
+           && (abs != 0)                  // is not zero
+           && ((abs & kBiasedExponentMask) !=
+               0);  // is not subnormal (has a non-zero exponent)
   }
 
   /// <summary>
@@ -447,9 +447,10 @@ struct BFloat16Impl {
   /// <returns>True if so</returns>
   bool IsSubnormal() const noexcept {
     auto abs = AbsImpl();
-    return (abs < kPositiveInfinityBits)           // is finite
-           && (abs != 0)                           // is not zero
-           && ((abs & kBiasedExponentMask) == 0);  // is subnormal (has a zero exponent)
+    return (abs < kPositiveInfinityBits)  // is finite
+           && (abs != 0)                  // is not zero
+           && ((abs & kBiasedExponentMask) ==
+               0);  // is subnormal (has a zero exponent)
   }
 
   /// <summary>
@@ -465,17 +466,20 @@ struct BFloat16Impl {
   Derived Negate() const noexcept { return Derived::FromBits(NegateImpl()); }
 
   /// <summary>
-  /// IEEE defines that positive and negative zero are equal, this gives us a quick equality check
-  /// for two values by or'ing the private bits together and stripping the sign. They are both zero,
-  /// and therefore equivalent, if the resulting value is still zero.
+  /// IEEE defines that positive and negative zero are equal, this gives us a
+  /// quick equality check for two values by or'ing the private bits together
+  /// and stripping the sign. They are both zero, and therefore equivalent, if
+  /// the resulting value is still zero.
   /// </summary>
   /// <param name="lhs">first value</param>
   /// <param name="rhs">second value</param>
   /// <returns>True if both arguments represent zero</returns>
-  static bool AreZero(const BFloat16Impl& lhs, const BFloat16Impl& rhs) noexcept {
-    // IEEE defines that positive and negative zero are equal, this gives us a quick equality check
-    // for two values by or'ing the private bits together and stripping the sign. They are both zero,
-    // and therefore equivalent, if the resulting value is still zero.
+  static bool AreZero(const BFloat16Impl& lhs,
+                      const BFloat16Impl& rhs) noexcept {
+    // IEEE defines that positive and negative zero are equal, this gives us a
+    // quick equality check for two values by or'ing the private bits together
+    // and stripping the sign. They are both zero, and therefore equivalent, if
+    // the resulting value is still zero.
     return static_cast<uint16_t>((lhs.val | rhs.val) & ~kSignMask) == 0;
   }
 };
@@ -493,7 +497,8 @@ inline uint16_t BFloat16Impl<Derived>::ToUint16Impl(float v) noexcept {
 #else
       if (detail::endian::native == detail::endian::little) {
 #endif
-        std::memcpy(&result, reinterpret_cast<char*>(&fl) + sizeof(uint16_t), sizeof(uint16_t));
+        std::memcpy(&result, reinterpret_cast<char*>(&fl) + sizeof(uint16_t),
+                    sizeof(uint16_t));
       } else {
         std::memcpy(&result, &fl, sizeof(uint16_t));
       }

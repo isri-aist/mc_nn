@@ -129,7 +129,7 @@ configuration. Installed libraries use RPATH to find mc_nn's dependencies;
 ### 2. Enable the host controller
 
 Set `Enabled: [MCNN]` in your mc_rtc configuration (~/.config/mc_rtc/mc_rtc.yaml), keeping your existing robot
-and simulator settings or using JVRC1 pre-installed Robot: 
+and simulator settings or using JVRC1 pre-installed Robot:
 ```yaml
 MainRobot: JVRC1 #Or yours
 Enabled: [MCNN]
@@ -147,7 +147,7 @@ directory. Add this state to `~/.config/mc_rtc/controllers/MCNN/<robot>.yaml` (o
 robots:
   ground:
     module: env/ground
-constraints: 
+constraints:
   - type: contact
   - type: dynamics
     damper: [0.1, 0.01, 0.5]
@@ -200,7 +200,7 @@ first action slots in list order.
 robots:
   ground:
     module: env/ground
-constraints: 
+constraints:
   - type: contact
   - type: dynamics
     damper: [0.1, 0.01, 0.5]

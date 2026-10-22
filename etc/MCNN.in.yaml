@@ -21,22 +21,37 @@ StatesFiles:
 # If true, state factory will be more verbose
 VerboseStateFactory: false
 
-# General constraints, always on
+robots:
+  ground:
+    module: env/ground
 constraints:
-- type: contact
-- type: dynamics
-  damper: [0.1, 0.01, 0.5]
-- type: compoundJoint
-# Collision constraint
-collisions:
-- type: collision
-  useMinimal: true
-
-# RunNN and RunNNBase (models_dirs = installed policies/) are provided by this
-# package. Robot-specific policy states go in config/controllers/MCNN/<robot>.yaml
-
-# Transitions map
+  - type: contact
+  - type: dynamics
+    damper: [0.1, 0.01, 0.5]
+  - type: compoundJoint
+contacts:
+  - r2: ground
+    r1Surface: LeftFootCenter
+    r2Surface: AllGround
+  - r2: ground
+    r1Surface: RightFootCenter
+    r2Surface: AllGround
+states:
+  TryBothPolicies:
+    base: RunNNBase
+    active_policies: [dummy_example, posture_dummy_example]
+    policies:
+      - onnx: ["dummy_example"]
+        contract: RandomPolicyContract
+        policy_hz: 10.0
+        print_every: 10
+      - onnx: ["dummy_example"]
+        prefix: "posture_" #We need to add a prefix to avoid naming conflict with already configured policy named "dummy_example" fro RandomPolicyContract
+        contract: PostureTaskPolicyContract
+        policy_hz: 2.0
+        joints: [L_WRIST_R, R_WRIST_R, NECK_Y]
+        weight: 1.0
+        stiffness: 10.0
 transitions:
-- [MCNN_Initial, OK, MCNN_Initial, Strict]
-# Initial state
-init: MCNN_Initial
+  - [TryBothPolicies, OK, TryBothPolicies, Strict]
+init: TryBothPolicies

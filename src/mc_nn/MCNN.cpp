@@ -4,41 +4,37 @@
 
 #include <stdexcept>
 
-namespace
-{
+namespace {
 
-Eigen::VectorXd toEigen(const std::vector<float> & values)
-{
+Eigen::VectorXd toEigen(const std::vector<float>& values) {
   Eigen::VectorXd out(static_cast<Eigen::Index>(values.size()));
-  for(size_t i = 0; i < values.size(); ++i) { out(static_cast<Eigen::Index>(i)) = values[i]; }
+  for (size_t i = 0; i < values.size(); ++i) {
+    out(static_cast<Eigen::Index>(i)) = values[i];
+  }
   return out;
 }
 
-} // namespace
+}  // namespace
 
-bool MCNN::load()
-{
-  try
-  {
+bool MCNN::load() {
+  try {
     model_.reset(new MCNNModel(info().modelPath, info().device, info().id));
     return true;
-  }
-  catch(const std::exception & error)
-  {
-    mc_rtc::log::error("[MCNN:{}] Failed to load '{}': {}", info().id, info().modelPath, error.what());
+  } catch (const std::exception& error) {
+    mc_rtc::log::error("[MCNN:{}] Failed to load '{}': {}", info().id,
+                       info().modelPath, error.what());
     model_.reset();
     return false;
   }
 }
 
-void MCNN::step(mc_control::fsm::Controller & ctl)
-{
+void MCNN::step(mc_control::fsm::Controller& ctl) {
   input_buffer_.clear();
   buildInputs(ctl);
-  if(input_buffer_.size() != expectedObservationSize())
-  {
+  if (input_buffer_.size() != expectedObservationSize()) {
     mc_rtc::log::error_and_throw<std::runtime_error>(
-        "[MCNN:{}] Observation size mismatch: model expects {}, policy produced {}",
+        "[MCNN:{}] Observation size mismatch: model expects {}, policy "
+        "produced {}",
         info().id, expectedObservationSize(), input_buffer_.size());
   }
 

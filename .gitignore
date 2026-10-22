@@ -1,4 +1,4 @@
-build/
+build*
 devel/
 install/
 log/
@@ -9,3 +9,6 @@ CMakeFiles/
 imgui.ini
 **/__tmp__*
 **/__pycache__/
+result
+.direnv/
+.superbuild/

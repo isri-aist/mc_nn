@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Eigen/Core>
 #include <onnxruntime_cxx_api.h>
 
+#include <Eigen/Core>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,23 +23,24 @@
  *
  * The constructor throws std::runtime_error when the model cannot be used.
  */
-struct MCNNModel
-{
-  MCNNModel(const std::string & path, const std::string & device, const std::string & logName);
+struct MCNNModel {
+  MCNNModel(const std::string& path, const std::string& device,
+            const std::string& logName);
 
-  /** Run one inference. `input.size()` must equal inputSize(); `output` is resized to outputSize(). */
-  void run(const std::vector<float> & input, std::vector<float> & output);
+  /** Run one inference. `input.size()` must equal inputSize(); `output` is
+   * resized to outputSize(). */
+  void run(const std::vector<float>& input, std::vector<float>& output);
 
   /** Eigen convenience wrapper around run(). */
-  Eigen::VectorXd predict(const Eigen::VectorXd & input);
+  Eigen::VectorXd predict(const Eigen::VectorXd& input);
 
   size_t inputSize() const noexcept { return input_size_; }
   size_t outputSize() const noexcept { return output_size_; }
   /** Execution provider actually used: "CPU" or "CUDA". */
-  const std::string & provider() const noexcept { return provider_; }
-  const std::string & path() const noexcept { return path_; }
+  const std::string& provider() const noexcept { return provider_; }
+  const std::string& path() const noexcept { return path_; }
 
-private:
+ private:
   std::string path_;
   std::string log_name_;
   std::string provider_ = "CPU";

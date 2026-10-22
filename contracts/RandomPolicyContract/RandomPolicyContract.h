@@ -16,16 +16,15 @@
 // loading, the inference and the size checks. For contracts that need more
 // (several models, work every controller tick, work after the QP solve...),
 // derive from MCNNContract (mc_nn/MCNNContract.h) instead.
-#include "mc_nn/MCNN.h"
-
 #include <cstdint>
 #include <random>
 #include <string>
 #include <vector>
 
-struct RandomPolicyContract : MCNN
-{
-protected:
+#include "mc_nn/MCNN.h"
+
+struct RandomPolicyContract : MCNN {
+ protected:
   // ------------------------------------------------------------------------
   // Required MCNN hooks, in the order RunNN calls them.
   // ------------------------------------------------------------------------
@@ -35,7 +34,7 @@ protected:
    * Called once per policy when the RunNN state starts, before the model is
    * loaded and before any controller access: only parse and validate here.
    */
-  void configurePolicy(const mc_rtc::Configuration & config) override;
+  void configurePolicy(const mc_rtc::Configuration& config) override;
 
   /**
    * Called when the policy is launched or played. The model is loaded, so the
@@ -43,43 +42,49 @@ protected:
    * expectedActionSize()). A real contract validates the robot here (joints,
    * frames, sensors) and creates its tasks.
    */
-  void startPolicy(mc_control::fsm::Controller & ctl) override;
+  void startPolicy(mc_control::fsm::Controller& ctl) override;
 
   /**
    * Called at the policy rate, right before inference. Must append exactly
    * expectedObservationSize() floats to input_buffer_ (cleared by MCNN).
    */
-  void buildInputs(mc_control::fsm::Controller & ctl) override;
+  void buildInputs(mc_control::fsm::Controller& ctl) override;
 
   /**
    * Called at the policy rate, right after inference. output_buffer_ holds
    * expectedActionSize() floats produced by the model.
    */
-  void applyActions(mc_control::fsm::Controller & ctl) override;
+  void applyActions(mc_control::fsm::Controller& ctl) override;
 
-  /** Called every controller tick while running: true when this policy is done. */
-  bool isPolicyFinished(mc_control::fsm::Controller & ctl) override;
+  /** Called every controller tick while running: true when this policy is done.
+   */
+  bool isPolicyFinished(mc_control::fsm::Controller& ctl) override;
 
   /**
    * Called when the policy is paused, removed or the RunNN state ends (and
    * after a failed startPolicy). Undo everything startPolicy did.
    */
-  void teardownPolicy(mc_control::fsm::Controller & ctl) override;
+  void teardownPolicy(mc_control::fsm::Controller& ctl) override;
 
-public:
+ public:
   // ------------------------------------------------------------------------
   // Optional MCNNContract hooks. Every hook has a default; override only what
   // you need. Here: a small GUI and one log entry, to show how they plug into
-  // RunNN. Both are skipped by RunNN when its `gui` / `logs` settings are false.
+  // RunNN. Both are skipped by RunNN when its `gui` / `logs` settings are
+  // false.
   // ------------------------------------------------------------------------
 
-  /** Elements added under `category` (MCNN / <state> / <policy id> / RandomPolicyContract). */
-  void addGui(mc_control::fsm::Controller & ctl, const std::vector<std::string> & category) override;
+  /** Elements added under `category` (MCNN / <state> / <policy id> /
+   * RandomPolicyContract). */
+  void addGui(mc_control::fsm::Controller& ctl,
+              const std::vector<std::string>& category) override;
 
-  /** Log entries named prefix + name ("MCNN_<policy id>_"), with `this` as source. */
-  void addLog(mc_control::fsm::Controller & ctl, const std::string & prefix) override;
+  /** Log entries named prefix + name ("MCNN_<policy id>_"), with `this` as
+   * source. */
+  void addLog(mc_control::fsm::Controller& ctl,
+              const std::string& prefix) override;
 
-private:
+ private:
   // Contract-specific YAML fields (see configurePolicy for their meaning).
   unsigned int seed_ = 0;
   double input_min_ = -1.0;
